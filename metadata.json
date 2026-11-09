@@ -1,0 +1,6 @@
+{
+  "name": "Stock ATH & Nifty 500 Outperformance Analyzer",
+  "description": "Institutional equity analyzer tracking stock all-time high prices, PAT (Profit After Tax) milestones, and cumulative outperformance vs Nifty 500.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
