@@ -1,13 +1,24 @@
 import React from 'react';
-import { Download, ShieldCheck, Sparkles } from 'lucide-react';
+import { Download, Github, ExternalLink } from 'lucide-react';
 
 interface HeaderProps {
   currentTicker: string;
+  githubUrl: string;
+  onOpenGithubModal: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentTicker }) => {
+export const Header: React.FC<HeaderProps> = ({
+  currentTicker,
+  githubUrl,
+  onOpenGithubModal,
+}) => {
+  const apiBase =
+    typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
+      ? 'https://ais-pre-qvyj3tcy3bbsptuy27dqz2-263654441402.asia-southeast1.run.app'
+      : '';
+
   const handleDownloadPython = () => {
-    window.location.href = `/api/download-python?ticker=${encodeURIComponent(currentTicker)}`;
+    window.location.href = `${apiBase}/api/download-python?ticker=${encodeURIComponent(currentTicker)}`;
   };
 
   return (
@@ -36,11 +47,53 @@ export const Header: React.FC<HeaderProps> = ({ currentTicker }) => {
         </div>
 
         {/* Actions & Attribution */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="hidden sm:flex items-center text-xs font-mono text-slate-300 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Developed by attribution with GitHub profile link */}
+          <a
+            href="https://github.com/souravb1980"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex items-center text-xs font-mono text-slate-300 bg-slate-900/80 hover:bg-slate-850 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition group"
+            title="View Sourav Kumar Bhowmick on GitHub"
+          >
             <span className="text-slate-400 mr-1.5">Developed by</span>
-            <span className="text-emerald-400 font-bold">Sourav Kumar Bhowmick</span>
+            <span className="text-emerald-400 font-bold group-hover:underline">
+              Sourav Kumar Bhowmick
+            </span>
+          </a>
+
+          {/* GitHub Site Link Button */}
+          <div className="flex items-center rounded-lg bg-slate-900 border border-slate-700 overflow-hidden shadow-xs">
+            <a
+              href={githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-800 transition"
+              title={`Visit GitHub site: ${githubUrl}`}
+            >
+              <Github className="w-3.5 h-3.5 text-slate-300" />
+              <span>GitHub</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </a>
+            <button
+              onClick={onOpenGithubModal}
+              className="px-2 py-1.5 text-[11px] text-slate-400 hover:text-emerald-400 hover:bg-slate-800 border-l border-slate-700 transition"
+              title="GitHub settings & clone commands"
+            >
+              Repo
+            </button>
           </div>
+
+          {/* Download full project ZIP button */}
+          <a
+            href={`${apiBase}/api/download-zip`}
+            download="stock-ath-nifty500-analyzer.zip"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-200 border border-indigo-700/60 transition"
+            title="Download full project code as .zip for GitHub"
+          >
+            <Download className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Project .zip</span>
+          </a>
 
           {/* Download configured Python script button */}
           <button

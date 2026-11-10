@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,14 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(express.json());
+
+// Enable CORS so GitHub Pages (https://souravb1980.github.io/STOCKS/) can fetch data
+app.use((_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
 
 // Yahoo Finance Crumb & Cookie Cache
 let cachedCookie = '';
@@ -1318,8 +1327,145 @@ plt.show()
   res.send(pythonScript);
 });
 
+// Download full repository ZIP archive for GitHub publishing
+app.get('/api/download-zip', (_req, res) => {
+  try {
+    const zipPath = path.join('/tmp', 'stock-ath-nifty500-analyzer.zip');
+    // Package the project cleanly omitting node_modules, dist, .git, etc.
+    const pyScript = `import zipfile, os
+exclude_dirs = {'node_modules', 'dist', '.git', '__pycache__', '.aistudio'}
+exclude_files = {'.DS_Store'}
+root_dir = os.getcwd()
+with zipfile.ZipFile('/tmp/stock-ath-nifty500-analyzer.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+    for root, dirs, files in os.walk(root_dir):
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        for file in files:
+            if file in exclude_files or file.endswith('.pyc'):
+                continue
+            full_path = os.path.join(root, file)
+            rel_path = os.path.relpath(full_path, root_dir)
+            zipf.write(full_path, rel_path)
+`;
+    execSync('python3', { input: pyScript });
+    res.setHeader('Content-Disposition', 'attachment; filename="stock-ath-nifty500-analyzer.zip"');
+    res.setHeader('Content-Type', 'application/zip');
+    const fileStream = fs.createReadStream(zipPath);
+    fileStream.pipe(res);
+  } catch (err: any) {
+    console.error('Failed to generate project zip:', err);
+    res.status(500).json({ error: 'Failed to generate repository zip file' });
+  }
+});
+
+// Download pre-compiled GitHub Pages package (contents of dist/)
+app.get('/api/download-pages-zip', (_req, res) => {
+  try {
+    const zipPath = path.join('/tmp', 'stocks-github-pages-ready.zip');
+    const pyScript = `import zipfile, os
+root_dir = os.path.join(os.getcwd(), 'dist')
+with zipfile.ZipFile('${zipPath}', 'w', zipfile.ZIP_DEFLATED) as zipf:
+    for root, dirs, files in os.walk(root_dir):
+        for file in files:
+            full_path = os.path.join(root, file)
+            rel_path = os.path.relpath(full_path, root_dir)
+            zipf.write(full_path, rel_path)
+`;
+    execSync('python3', { input: pyScript });
+    res.setHeader('Content-Disposition', 'attachment; filename="stocks-github-pages-ready.zip"');
+    res.setHeader('Content-Type', 'application/zip');
+    const fileStream = fs.createReadStream(zipPath);
+    fileStream.pipe(res);
+  } catch (err: any) {
+    console.error('Failed to generate pages zip:', err);
+    res.status(500).json({ error: 'Failed to generate GitHub Pages zip' });
+  }
+});
+
+// Automated 1-Click Push to GitHub
+app.post('/api/publish-to-github', (req, res) => {
+  const { token, repo } = req.body || {};
+  if (!token || typeof token !== 'string') {
+    return res.status(400).json({ error: 'GitHub Personal Access Token is required.' });
+  }
+  const targetRepo = (repo || 'souravb1980/STOCKS').trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  
+  try {
+    // 1. Ensure production build exists
+    execSync('npm run build', { cwd: __dirname });
+
+    // 2. Prepare isolated deploy directory
+    const deployDir = '/tmp/gh-pages-deploy';
+    execSync(`rm -rf ${deployDir} && mkdir -p ${deployDir}`);
+    execSync(`cp -r ${path.join(__dirname, 'dist')}/* ${deployDir}/`);
+    
+    // Also include a copy of README.md and .nojekyll for GitHub Pages
+    fs.writeFileSync(path.join(deployDir, '.nojekyll'), '');
+    if (fs.existsSync(path.join(__dirname, 'README.md'))) {
+      fs.copyFileSync(path.join(__dirname, 'README.md'), path.join(deployDir, 'README.md'));
+    }
+
+    // 3. Initialize git commit in the deploy folder
+    const gitSetupScript = `
+cd ${deployDir}
+git config --global --add safe.directory ${deployDir} || true
+git init
+git config user.name "Sourav Kumar Bhowmick"
+git config user.email "souravb1980@gmail.com"
+git branch -M main
+git add .
+git commit -m "deploy: Complete Stock ATH & Institutional Analyzer"
+`;
+    execSync(gitSetupScript);
+
+    // 4. Push directly to user's GitHub repository using token
+    const pushUrl = `https://${encodeURIComponent(token.trim())}@github.com/${targetRepo}.git`;
+    execSync(`cd ${deployDir} && git push --force "${pushUrl}" main:main`);
+
+    // Clean up
+    execSync(`rm -rf ${deployDir}`);
+
+    const siteUrl = `https://${targetRepo.split('/')[0]}.github.io/${targetRepo.split('/')[1]}/`;
+    res.json({
+      success: true,
+      repo: targetRepo,
+      siteUrl,
+      message: `Successfully pushed compiled files to https://github.com/${targetRepo}! Your site at ${siteUrl} will update automatically.`,
+    });
+  } catch (err: any) {
+    console.error('Failed to publish to GitHub:', err);
+    res.status(500).json({
+      error: err.message || 'Failed to push to GitHub. Please check that your token has "repo" permissions.',
+    });
+  }
+});
+
+// Returns copy-ready standalone index.html for direct pasting on GitHub
+app.get('/api/standalone-index-html', (_req, res) => {
+  try {
+    const distIndexPath = path.join(__dirname, 'dist/index.html');
+    if (!fs.existsSync(distIndexPath)) {
+      execSync('npm run build', { cwd: __dirname });
+    }
+    let html = fs.readFileSync(distIndexPath, 'utf-8');
+    const cdnBase = 'https://ais-pre-qvyj3tcy3bbsptuy27dqz2-263654441402.asia-southeast1.run.app';
+    html = html.replace(/src="\.\/assets\//g, `src="${cdnBase}/assets/`);
+    html = html.replace(/href="\.\/assets\//g, `href="${cdnBase}/assets/`);
+    html = html.replace(/href="\.\/icon\.svg"/g, `href="${cdnBase}/icon.svg"`);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(html);
+  } catch (err: any) {
+    res.status(500).send('Error generating standalone index.html');
+  }
+});
+
 // Vite middleware setup
 async function startServer() {
+  // Always serve compiled production assets if they exist
+  const distAssetsPath = path.resolve(__dirname, 'dist/assets');
+  if (fs.existsSync(distAssetsPath)) {
+    app.use('/assets', express.static(distAssetsPath));
+  }
+
   if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },

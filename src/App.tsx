@@ -9,7 +9,7 @@ import { LifetimeTripleChart } from './components/LifetimeTripleChart';
 import { PatBarChart } from './components/PatBarChart';
 import { LastMonthChart } from './components/LastMonthChart';
 import { DataTableModal } from './components/DataTableModal';
-import { useOnlineStatus } from './usePWAInstall';
+import { GitHubModal } from './components/GitHubModal';
 import {
   AlertCircle,
   RefreshCw,
@@ -17,10 +17,42 @@ import {
   Terminal,
   ShieldCheck,
   ExternalLink,
+  Github,
   WifiOff,
   BarChart4,
   Layers,
 } from 'lucide-react';
+
+const DEFAULT_GITHUB_URL = 'https://github.com/souravb1980/STOCKS';
+const CLOUD_API_BASE = 'https://ais-pre-qvyj3tcy3bbsptuy27dqz2-263654441402.asia-southeast1.run.app';
+
+export function getApiBase(): string {
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')) {
+    return CLOUD_API_BASE;
+  }
+  return '';
+}
+
+function getSafeStorage(key: string, fallback: string): string {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key) || fallback;
+    }
+  } catch {
+    // Storage access may be blocked in cross-origin iframes
+  }
+  return fallback;
+}
+
+function setSafeStorage(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {
+    // Ignore restricted iframe storage errors
+  }
+}
 
 export default function App() {
   const [ticker, setTicker] = useState<string>('RADICO.NS');
@@ -29,19 +61,40 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [valueMigrationScore, setValueMigrationScore] = useState<number>(3);
 
+  // GitHub URL and modal state safely initialized
+  const [githubUrl, setGithubUrl] = useState<string>(() =>
+    getSafeStorage('stock_analyzer_github_url', DEFAULT_GITHUB_URL)
+  );
+  const [isGithubModalOpen, setIsGithubModalOpen] = useState<boolean>(false);
+
   // Modals
   const [isDataModalOpen, setIsDataModalOpen] = useState<boolean>(false);
 
-  // Online status for PWA
-  const isOnline = useOnlineStatus();
+  // Safe online status
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      setIsOnline(navigator.onLine);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
 
   const fetchData = async (sym: string, vmScore?: number) => {
     setIsLoading(true);
     setError(null);
     const vmParam = vmScore !== undefined ? vmScore : valueMigrationScore;
+    const apiBase = getApiBase();
     try {
       const res = await fetch(
-        `/api/analyze?ticker=${encodeURIComponent(sym)}&valueMigration=${vmParam}`
+        `${apiBase}/api/analyze?ticker=${encodeURIComponent(sym)}&valueMigration=${vmParam}`
       );
       if (!res.ok) {
         const errJson = await res.json().catch(() => null);
@@ -82,7 +135,11 @@ export default function App() {
       )}
 
       {/* Main Header */}
-      <Header currentTicker={ticker} />
+      <Header
+        currentTicker={ticker}
+        githubUrl={githubUrl}
+        onOpenGithubModal={() => setIsGithubModalOpen(true)}
+      />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -202,13 +259,32 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-900/80 py-6 mt-12 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="font-mono text-emerald-400 font-bold">Stock ATH & Institutional Analyzer</span>
             <span className="text-slate-600">•</span>
             <span className="text-slate-400">11 Fundamentals + 4 Technical Criteria • Buy/Hold/Exit Matrix</span>
           </div>
-          <div className="flex items-center gap-2 font-mono">
+          <div className="flex items-center gap-3 font-mono flex-wrap justify-center sm:justify-end">
+            <a
+              href={githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/80 transition"
+              title={`Visit GitHub site: ${githubUrl}`}
+            >
+              <Github className="w-3.5 h-3.5 text-slate-300" />
+              <span>GitHub Site Link</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </a>
+            <button
+              onClick={() => setIsGithubModalOpen(true)}
+              className="text-xs text-slate-400 hover:text-emerald-400 underline transition cursor-pointer"
+              title="View repository clone and push guide"
+            >
+              Repo Guide
+            </button>
+            <span className="text-slate-600">•</span>
             <span className="text-slate-300 font-semibold uppercase tracking-wider">
               COPYRIGHT Sourav Kumar Bhowmick
             </span>
@@ -226,6 +302,17 @@ export default function App() {
           data={data}
         />
       )}
+
+      {/* GitHub Repository & Link Modal */}
+      <GitHubModal
+        isOpen={isGithubModalOpen}
+        onClose={() => setIsGithubModalOpen(false)}
+        githubUrl={githubUrl}
+        onUpdateGithubUrl={(newUrl) => {
+          setGithubUrl(newUrl);
+          setSafeStorage('stock_analyzer_github_url', newUrl);
+        }}
+      />
     </div>
   );
 }
