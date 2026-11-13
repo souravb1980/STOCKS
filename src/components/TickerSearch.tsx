@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ArrowRight, Loader2, TrendingUp, Check } from 'lucide-react';
+import { Search, ArrowRight, Loader2, TrendingUp, Check, Sparkles } from 'lucide-react';
 
 interface TickerSearchProps {
   currentTicker: string;
@@ -7,16 +7,21 @@ interface TickerSearchProps {
   isLoading: boolean;
 }
 
-const POPULAR_TICKERS = [
+export const POPULAR_TICKERS = [
   { symbol: 'RADICO.NS', name: 'Radico Khaitan' },
-  { symbol: 'TCS.NS', name: 'Tata Consultancy' },
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries' },
-  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
-  { symbol: 'INFY.NS', name: 'Infosys' },
+  { symbol: 'RELIANCE.NS', name: 'Reliance Ind.' },
+  { symbol: 'TCS.NS', name: 'TCS' },
   { symbol: 'HDFCBANK.NS', name: 'HDFC Bank' },
+  { symbol: 'INFY.NS', name: 'Infosys' },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank' },
   { symbol: 'ITC.NS', name: 'ITC Ltd' },
+  { symbol: 'SBIN.NS', name: 'SBI' },
+  { symbol: 'BHARTIARTL.NS', name: 'Airtel' },
+  { symbol: 'BAJFINANCE.NS', name: 'Bajaj Finance' },
+  { symbol: 'TITAN.NS', name: 'Titan' },
+  { symbol: 'TATAMOTORS.NS', name: 'Tata Motors' },
   { symbol: 'DIXON.NS', name: 'Dixon Tech' },
-  { symbol: 'TITAN.NS', name: 'Titan Company' },
+  { symbol: 'ZOMATO.NS', name: 'Zomato' },
 ];
 
 export const TickerSearch: React.FC<TickerSearchProps> = ({
@@ -36,20 +41,39 @@ export const TickerSearch: React.FC<TickerSearchProps> = ({
   }, [currentTicker]);
 
   useEffect(() => {
-    if (!inputValue || inputValue.trim().length < 2) {
+    const q = inputValue.trim().toUpperCase();
+    if (!q || q.length < 2) {
       setSuggestions([]);
       return;
     }
 
+    // Client-side local suggestion fallback first (instant on GitHub Pages)
+    const localMatches = POPULAR_TICKERS.filter(
+      (item) =>
+        item.symbol.toUpperCase().includes(q) ||
+        item.name.toUpperCase().includes(q)
+    ).map((item) => ({
+      symbol: item.symbol,
+      shortname: item.name,
+      exchange: 'NSE',
+    }));
+
+    if (localMatches.length > 0) {
+      setSuggestions(localMatches);
+    }
+
+    // Background attempt to fetch live suggestions if backend is available
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(inputValue.trim())}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
         if (res.ok) {
           const list = await res.json();
-          setSuggestions(list);
+          if (Array.isArray(list) && list.length > 0) {
+            setSuggestions(list);
+          }
         }
-      } catch (err) {
-        // silent fail for suggestions
+      } catch {
+        // silent fail on static hosting
       }
     }, 250);
 
@@ -113,7 +137,7 @@ export const TickerSearch: React.FC<TickerSearchProps> = ({
                 setIsOpen(true);
               }}
               onFocus={() => setIsOpen(true)}
-              placeholder="e.g. RADICO.NS, TCS, RELIANCE, INFY, TATAMOTORS..."
+              placeholder="Type ticker (e.g. TCS, RELIANCE, INFY, TATAMOTORS, HDFCBANK)..."
               className="w-full bg-slate-950/80 hover:bg-slate-950 focus:bg-slate-950 border border-slate-700/80 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-white rounded-xl pl-10 pr-28 py-2.5 text-sm font-mono tracking-wide placeholder-slate-500 transition outline-none"
               autoComplete="off"
               spellCheck={false}
@@ -122,7 +146,7 @@ export const TickerSearch: React.FC<TickerSearchProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white text-xs font-semibold shadow-md transition"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white text-xs font-semibold shadow-md transition cursor-pointer"
               >
                 {isLoading ? (
                   <>
@@ -142,7 +166,8 @@ export const TickerSearch: React.FC<TickerSearchProps> = ({
           {/* Autocomplete dropdown */}
           {isOpen && suggestions.length > 0 && (
             <div className="absolute left-0 right-0 mt-1.5 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-800 max-h-64 overflow-y-auto">
-              <div className="px-3 py-1.5 bg-slate-950 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <div className="px-3 py-1.5 bg-slate-950 text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-emerald-400" />
                 Matching Tickers
               </div>
               {suggestions.map((item) => (
@@ -150,7 +175,7 @@ export const TickerSearch: React.FC<TickerSearchProps> = ({
                   key={item.symbol}
                   type="button"
                   onClick={() => handleSelectSuggestion(item.symbol)}
-                  className="w-full px-3 py-2 text-left hover:bg-slate-800 flex items-center justify-between transition group"
+                  className="w-full px-3 py-2 text-left hover:bg-slate-800 flex items-center justify-between transition group cursor-pointer"
                 >
                   <div className="flex flex-col">
                     <span className="font-mono text-xs font-bold text-emerald-400 group-hover:text-emerald-300">
@@ -180,16 +205,16 @@ export const TickerSearch: React.FC<TickerSearchProps> = ({
               <button
                 key={stock.symbol}
                 type="button"
-                onClick={() => onSelectTicker(stock.symbol)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition flex items-center gap-1 border ${
+                onClick={() => handleSelectSuggestion(stock.symbol)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono transition flex items-center gap-1 border cursor-pointer ${
                   isSelected
-                    ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/60 font-bold shadow-xs'
+                    ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500 font-bold shadow-xs ring-1 ring-emerald-500/30'
                     : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/80 hover:border-slate-600'
                 }`}
+                title={`Analyze ${stock.name} (${stock.symbol})`}
               >
                 {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
                 <span>{stock.symbol.replace('.NS', '')}</span>
-                <span className="text-[10px] text-slate-400">({stock.symbol})</span>
               </button>
             );
           })}

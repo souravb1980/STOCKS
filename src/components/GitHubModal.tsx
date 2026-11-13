@@ -360,58 +360,80 @@ git push -f origin main`;
                 <div>
                   <h5 className="font-bold text-white text-sm flex items-center gap-2">
                     <FileCode className="w-4 h-4 text-emerald-400" />
-                    <span>Single-File GitHub Web Edit (Zero Tokens, Zero Downloads)</span>
+                    <span>Option A: Download &amp; Upload Ready index.html (Zero Copy Errors)</span>
                   </h5>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    You can fix GitHub Pages directly inside your browser on github.com in 15 seconds:
+                    Avoids git diff markers and syntax errors by providing a ready-to-upload single file:
                   </p>
                 </div>
-                <button
-                  onClick={handleCopyHtml}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition cursor-pointer"
-                >
-                  {copiedHtml ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Code Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy Single-File HTML</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/api/download-singlefile-html"
+                    download="index.html"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Ready index.html</span>
+                  </a>
+                  <button
+                    onClick={handleCopyHtml}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition cursor-pointer"
+                  >
+                    {copiedHtml ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Copy Code</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2 text-xs text-slate-300">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">1</span>
-                  <span>Click <strong>"Copy Single-File HTML"</strong> button above.</span>
+                  <span>Click <strong>"Download Ready index.html"</strong> above.</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">2</span>
                   <span>
-                    Open this direct editor link:{' '}
+                    Open GitHub upload page:{' '}
                     <a
-                      href={`https://github.com/${currentRepo}/edit/main/index.html`}
+                      href={`https://github.com/${currentRepo}/upload/main`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-emerald-400 font-bold underline inline-flex items-center gap-1"
                     >
-                      Edit index.html on GitHub <ExternalLink className="w-3 h-3" />
+                      github.com/{currentRepo}/upload/main <ExternalLink className="w-3 h-3" />
                     </a>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">3</span>
-                  <span>Select all text in GitHub, paste the copied code, and click the green <strong>"Commit changes"</strong> button!</span>
+                  <span>Drag and drop the downloaded <code className="text-white font-mono">index.html</code> file into GitHub and click <strong>"Commit changes"</strong>!</span>
                 </div>
               </div>
 
-              <pre className="p-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-[11px] text-emerald-400/90 max-h-36 overflow-y-auto leading-relaxed">
-                {liveHtml}
-              </pre>
+              {/* Troubleshooting Note for Push Access / Disabled Uploads */}
+              <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs text-amber-200/90 space-y-1.5">
+                <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Seeing "Uploads are disabled. File uploads require push access"?</span>
+                </div>
+                <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                  This happens when your browser is not signed in to GitHub as <strong className="text-white font-mono">{repoOwner}</strong>.
+                </p>
+                <div className="text-[11px] space-y-1 pl-2 border-l border-amber-500/40">
+                  <div>• <strong>Fix 1:</strong> Make sure you are signed in at <a href="https://github.com/login" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-300">github.com/login</a> with account <strong>{repoOwner}</strong>.</div>
+                  <div>• <strong>Fix 2 (Edit in Browser):</strong> Open <a href={`https://github.com/${currentRepo}/edit/main/index.html`} target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-300">github.com/{currentRepo}/edit/main/index.html</a>, click <strong>"Copy Code"</strong> above, paste it into the editor, and click <strong>Commit changes</strong>.</div>
+                  <div>• <strong>Fix 3 (Automated):</strong> Switch to Tab 1 above <strong>"Automated 1-Click Push"</strong> and let our server deploy directly using a token!</div>
+                </div>
+              </div>
             </div>
           )}
 

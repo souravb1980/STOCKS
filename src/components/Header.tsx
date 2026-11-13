@@ -84,6 +84,17 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
+          {/* Download standalone ready index.html button */}
+          <a
+            href={`${apiBase}/api/download-singlefile-html`}
+            download="index.html"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition"
+            title="Download ready-to-upload single-file index.html for GitHub Pages"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Ready index.html</span>
+          </a>
+
           {/* Download full project ZIP button */}
           <a
             href={`${apiBase}/api/download-zip`}

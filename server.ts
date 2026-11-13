@@ -1381,6 +1381,18 @@ with zipfile.ZipFile('${zipPath}', 'w', zipfile.ZIP_DEFLATED) as zipf:
   }
 });
 
+// Download standalone 1-file index.html for direct upload to GitHub
+app.get('/api/download-singlefile-html', (_req, res) => {
+  const filePath = path.join(__dirname, 'public', 'single-file-index.html');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Disposition', 'attachment; filename="index.html"');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    fs.createReadStream(filePath).pipe(res);
+  } else {
+    res.status(404).send('Single-file index.html not generated yet');
+  }
+});
+
 // Automated 1-Click Push to GitHub
 app.post('/api/publish-to-github', (req, res) => {
   const { token, repo } = req.body || {};
@@ -1439,22 +1451,18 @@ git commit -m "deploy: Complete Stock ATH & Institutional Analyzer"
   }
 });
 
-// Returns copy-ready standalone index.html for direct pasting on GitHub
+// Returns copy-ready standalone index.html for direct pasting or upload to GitHub
 app.get('/api/standalone-index-html', (_req, res) => {
   try {
-    const distIndexPath = path.join(__dirname, 'dist/index.html');
-    if (!fs.existsSync(distIndexPath)) {
-      execSync('npm run build', { cwd: __dirname });
+    const singleFilePath = path.join(__dirname, 'public', 'single-file-index.html');
+    if (!fs.existsSync(singleFilePath)) {
+      execSync('npm run build && node scripts/build-single-file.js', { cwd: __dirname });
     }
-    let html = fs.readFileSync(distIndexPath, 'utf-8');
-    const cdnBase = 'https://ais-pre-qvyj3tcy3bbsptuy27dqz2-263654441402.asia-southeast1.run.app';
-    html = html.replace(/src="\.\/assets\//g, `src="${cdnBase}/assets/`);
-    html = html.replace(/href="\.\/assets\//g, `href="${cdnBase}/assets/`);
-    html = html.replace(/href="\.\/icon\.svg"/g, `href="${cdnBase}/icon.svg"`);
+    const html = fs.readFileSync(singleFilePath, 'utf-8');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.send(html);
   } catch (err: any) {
-    res.status(500).send('Error generating standalone index.html');
+    res.status(500).send('Error reading single-file index.html');
   }
 });
 
